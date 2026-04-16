@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="App meteo moderna con previsioni a 7 giorni, grafici, suggerimenti smart e geolocalizzazione">
+    <meta name="theme-color" content="#5b6cff">
+
+    <!-- Content Security Policy: defense-in-depth contro XSS.
+         Anche se già usiamo textContent/escapeHtml nei rendering, questa policy impedisce
+         al browser di eseguire script inline o da domini non whitelistati se qualcosa
+         riuscisse a bypassarci. 'unsafe-inline' per style serve per gli SVG inline. -->
+    <meta http-equiv="Content-Security-Policy"
+          content="default-src 'self';
+                   script-src 'self';
+                   style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+                   font-src 'self' https://fonts.gstatic.com;
+                   img-src 'self' data:;
+                   connect-src 'self';
+                   frame-ancestors 'none';
+                   base-uri 'self';
+                   form-action 'self';">
+
+    <title>Weather · Previsioni moderne</title>
+
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="style.css">
+</head>
+<body data-theme="light" data-weather="default">
+
+    <!-- Background animato con particelle -->
+    <div class="background" aria-hidden="true">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+        <canvas id="particlesCanvas"></canvas>
+    </div>
+
+    <main class="app">
+
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <span class="logo-icon">☀️</span>
+                <span class="logo-text">Weather</span>
+            </div>
+
+            <div class="greeting" id="greeting"></div>
+
+            <div class="controls">
+                <button id="compareBtn" class="icon-btn" aria-label="Confronta preferiti" title="Confronta preferiti">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+                        <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+                    </svg>
+                </button>
+                <button id="unitToggle" class="pill-btn" aria-label="Cambia unità">
+                    <span class="pill-value">°C</span>
+                </button>
+                <button id="themeToggle" class="icon-btn" aria-label="Cambia tema">
+                    <span class="theme-icon">🌙</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Ricerca -->
+        <section class="search-section">
+            <div class="search-wrapper">
+                <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"/>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+                <input type="text"
+                       id="cityInput"
+                       class="search-input"
+                       placeholder="Cerca una città... (premi / per focus)"
+                       autocomplete="off"
+                       spellcheck="false">
+                <kbd class="kbd-hint">/</kbd>
+                <button id="geolocateBtn" class="geo-btn" aria-label="Usa la mia posizione" title="Usa la mia posizione">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="3"/>
+                        <path d="M12 2v2M12 20v2M2 12h2M20 12h2"/>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Autocomplete in-flow: spinge il contenuto sotto quando appare,
+                 così non si sovrappone mai a banner o weather card. -->
+            <ul id="autocompleteList" class="autocomplete-list hidden" role="listbox"></ul>
+
+            <div id="historySection" class="history-section hidden">
+                <span class="history-label">Recenti:</span>
+                <div id="historyChips" class="history-chips"></div>
+            </div>
+
+            <div id="favoritesSection" class="history-section hidden">
+                <span class="history-label">⭐ Preferiti:</span>
+                <div id="favoritesChips" class="history-chips"></div>
+            </div>
+        </section>
+
+        <!-- Alert/Error: aria-live="polite" fa sì che screen reader li annuncino
+             automaticamente quando appaiono. aria-atomic="true" perché vogliamo
+             venga letto sempre il messaggio intero, non solo il delta. -->
+        <div id="alertBanner" class="alert-banner hidden" role="status" aria-live="polite" aria-atomic="true">
+            <span id="alertMessage"></span>
+            <button id="alertCloseBtn" class="alert-close-btn" aria-label="Chiudi avviso">×</button>
+        </div>
+        <div id="errorBanner" class="error-banner hidden" role="alert" aria-live="assertive" aria-atomic="true">
+            <span id="errorMessage"></span>
+            <button id="retryBtn" class="retry-btn">Riprova</button>
+        </div>
+
+        <!-- Loading -->
+        <div id="loadingState" class="loading-state hidden">
+            <div class="skeleton skeleton-hero"></div>
+            <div class="skeleton skeleton-chart"></div>
+            <div class="skeleton skeleton-forecast"></div>
+        </div>
+
+        <!-- Risultati meteo -->
+        <section id="weatherSection" class="weather-section hidden">
+
+            <!-- Current card (hero) -->
+            <div class="current-card glass">
+                <div class="current-header">
+                    <div class="location">
+                        <h2 id="cityName"></h2>
+                        <p id="cityMeta" class="city-meta"></p>
+                    </div>
+                    <div class="current-actions">
+                        <button id="favoriteBtn" class="action-btn" aria-label="Aggiungi ai preferiti" title="Aggiungi ai preferiti">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                            </svg>
+                        </button>
+                        <button id="shareBtn" class="action-btn" aria-label="Condividi" title="Condividi">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+                                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+                                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="current-body">
+                    <div class="current-main">
+                        <div class="temperature-display">
+                            <span id="temperature" class="temperature">--</span>
+                            <span id="tempUnit" class="temp-unit">°C</span>
+                        </div>
+                        <p id="description" class="description"></p>
+                        <p class="feels-like-inline">Percepita <span id="feelsLike">--°</span></p>
+                    </div>
+                    <div id="weatherIcon" class="weather-icon-big"></div>
+                </div>
+
+                <div id="suggestion" class="suggestion-box hidden"></div>
+
+                <div class="current-details">
+                    <div class="detail">
+                        <svg class="detail-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>
+                        </svg>
+                        <div><span class="detail-label">Umidità</span><span id="humidity" class="detail-value">--</span></div>
+                    </div>
+                    <div class="detail">
+                        <svg class="detail-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2"/>
+                        </svg>
+                        <div><span class="detail-label">Vento</span><span id="windSpeed" class="detail-value">--</span></div>
+                    </div>
+                    <div class="detail">
+                        <svg class="detail-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
+                        </svg>
+                        <div><span class="detail-label">Pressione</span><span id="pressure" class="detail-value">--</span></div>
+                    </div>
+                    <div class="detail">
+                        <svg class="detail-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="5"/>
+                            <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+                        </svg>
+                        <div><span class="detail-label">Indice UV</span><span id="uvIndex" class="detail-value">--</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Wind compass + Sun arc -->
+            <div class="side-by-side">
+                <div class="info-card glass">
+                    <h3 class="card-title">Vento</h3>
+                    <div id="windCompass" class="wind-compass"></div>
+                    <div class="compass-info">
+                        <span id="windDirectionText" class="big-value">--</span>
+                        <span class="small-value"><span id="windSpeedCompass">--</span></span>
+                    </div>
+                </div>
+
+                <div class="info-card glass">
+                    <h3 class="card-title">Sole</h3>
+                    <div id="sunArc" class="sun-arc"></div>
+                    <div class="sun-times">
+                        <div><span class="sun-label">↑</span><span id="sunriseTime">--:--</span></div>
+                        <div><span class="sun-label">↓</span><span id="sunsetTime">--:--</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Temperature chart -->
+            <div class="chart-card glass">
+                <h3 class="card-title">Andamento temperatura · 7 giorni</h3>
+                <div id="temperatureChart" class="temperature-chart"></div>
+            </div>
+
+            <!-- Forecast -->
+            <div class="forecast-section">
+                <h3 class="section-title">Prossimi 7 giorni</h3>
+                <div id="forecastList" class="forecast-list"></div>
+            </div>
+        </section>
+
+        <!-- Compare view -->
+        <section id="compareSection" class="compare-section hidden">
+            <div class="compare-header">
+                <h2>Confronto preferiti</h2>
+                <button id="closeCompareBtn" class="close-btn" aria-label="Chiudi">×</button>
+            </div>
+            <div id="compareGrid" class="compare-grid"></div>
+        </section>
+
+        <!-- Empty state -->
+        <section id="emptyState" class="empty-state">
+            <div class="empty-icon">🌤️</div>
+            <h2>Benvenuto in Weather</h2>
+            <p>Cerca una città o usa la tua posizione per iniziare</p>
+            <div class="keyboard-hints">
+                <span><kbd>/</kbd> cerca</span>
+                <span><kbd>Esc</kbd> chiudi</span>
+                <span><kbd>↑↓</kbd> naviga</span>
+            </div>
+        </section>
+
+        <!-- Modal dettaglio giorno -->
+        <div id="dayModal" class="modal hidden" role="dialog" aria-modal="true">
+            <div class="modal-backdrop"></div>
+            <div class="modal-content glass">
+                <button class="modal-close" id="closeModalBtn" aria-label="Chiudi">×</button>
+                <div id="modalBody"></div>
+            </div>
+        </div>
+
+        <footer class="footer">
+            <p>Dati forniti da <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> · senza API key · no tracking</p>
+        </footer>
+    </main>
+
+    <script src="app.js" type="module"></script>
+</body>
+</html>

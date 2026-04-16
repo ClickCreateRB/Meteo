@@ -1,0 +1,30 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: weather-app
+
+openmeteo:
+  forecast-url: https://api.open-meteo.com/v1/forecast
+  geocoding-url: https://geocoding-api.open-meteo.com/v1/search
+  # Timeout di 10s: le API pubbliche possono occasionalmente essere lente
+  # (specie il geocoding). Combinato col retry automatico nel client, copre
+  # tranquillamente i glitch transitori senza irritare l'utente.
+  timeout-seconds: 10
+
+# Actuator - esponi solo health e info (non metrics sensibili)
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when-authorized
+
+logging:
+  level:
+    com.weatherapp: DEBUG
+    # Attiva per debug cache: mostra HIT/MISS
+    # org.springframework.cache: TRACE
