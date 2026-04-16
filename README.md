@@ -30,18 +30,23 @@ codice commentato in italiano, di come si strutturano:
 ## 📸 Screenshot
 
 ### Light Mode
+
 ![Hero — scheda meteo principale](docs/Hero.png)
 
 ### Previsioni a 7 giorni
+
 ![Grafico temperature e forecast giornaliero](docs/Forecast.png)
 
 ### Autocomplete
+
 ![Ricerca con suggerimenti città](docs/Autocomplete.png)
 
 ### Confronto preferiti
+
 ![Griglia comparativa tra città preferite](docs/Confronto.png)
 
 ### Dark Mode
+
 ![Interfaccia completa in tema scuro](docs/Dark_Mode.png)
 
 ---
@@ -49,6 +54,7 @@ codice commentato in italiano, di come si strutturano:
 ## ✨ Funzionalità
 
 ### Backend
+
 - **Meteo per città** — ricerca testuale con geocoding automatico
 - **Meteo per coordinate** — usato dalla geolocalizzazione
 - **Autocomplete** — suggerimenti città durante la digitazione
@@ -60,6 +66,7 @@ codice commentato in italiano, di come si strutturano:
 - **Timeout configurabile** su connect/read/write
 
 ### Frontend
+
 - **Ricerca con autocomplete** — debounce, navigazione tastiera (↑↓ Enter Esc)
 - **Geolocalizzazione** — usa posizione del device con fallback graceful
 - **Preferiti e cronologia** — salvati in `localStorage`, max 10 preferiti e 5 cronologia
@@ -76,6 +83,7 @@ codice commentato in italiano, di come si strutturano:
 - **Scorciatoie tastiera** — `/` per focus ricerca, `Esc` per chiudere modali/confronto
 
 ### Accessibilità e sicurezza
+
 - **Content Security Policy** restrittiva
 - **ARIA live regions** sui banner per screen reader
 - **Focus management** nei modali (save/restore)
@@ -85,18 +93,18 @@ codice commentato in italiano, di come si strutturano:
 
 ## 🛠️ Tech Stack
 
-| Layer | Tecnologia |
-|---|---|
-| Runtime | Java 17 |
-| Framework | Spring Boot 3.4.5 |
-| HTTP Client | Spring WebClient (reactive) |
-| Cache | Caffeine (in-memory) |
-| Validation | Jakarta Bean Validation |
-| Test | JUnit 5, Mockito, MockMvc, `@WebMvcTest` |
-| Build | Maven |
-| Frontend | HTML5 + CSS3 + JavaScript ES2022 (zero dipendenze) |
-| Font | Inter (via Google Fonts) |
-| API meteo | [Open-Meteo](https://open-meteo.com/) |
+| Layer       | Tecnologia                                         |
+| ----------- | -------------------------------------------------- |
+| Runtime     | Java 17                                            |
+| Framework   | Spring Boot 3.4.5                                  |
+| HTTP Client | Spring WebClient (reactive)                        |
+| Cache       | Caffeine (in-memory)                               |
+| Validation  | Jakarta Bean Validation                            |
+| Test        | JUnit 5, Mockito, MockMvc, `@WebMvcTest`           |
+| Build       | Maven                                              |
+| Frontend    | HTML5 + CSS3 + JavaScript ES2022 (zero dipendenze) |
+| Font        | Inter (via Google Fonts)                           |
+| API meteo   | [Open-Meteo](https://open-meteo.com/)              |
 
 ---
 
@@ -113,7 +121,7 @@ codice commentato in italiano, di come si strutturano:
 
 ```bash
 # Clona il repository
-git clone https://github.com/ClickCreateRB/weather-app.git
+git clone https://github.com/ClickCreateRB/Meteo.git
 cd weather-app
 
 # Compila e scarica le dipendenze
@@ -131,18 +139,18 @@ ma modificabili:
 
 ```yaml
 server:
-  port: 8080                          # porta HTTP
+  port: 8080 # porta HTTP
 
 openmeteo:
   forecast-url: https://api.open-meteo.com/v1/forecast
   geocoding-url: https://geocoding-api.open-meteo.com/v1/search
-  timeout-seconds: 10                 # connect/read/write timeout
+  timeout-seconds: 10 # connect/read/write timeout
 
 management:
   endpoints:
     web:
       exposure:
-        include: health,info          # endpoint Actuator esposti
+        include: health,info # endpoint Actuator esposti
 ```
 
 Per sovrascrivere un valore a runtime senza toccare il file:
@@ -178,12 +186,13 @@ Recupera il meteo corrente e le previsioni per una città.
 
 **Query parameters:**
 
-| Nome | Tipo | Obbligatorio | Default | Validazione |
-|---|---|---|---|---|
-| `city` | string | sì | — | 2-100 caratteri, lettere Unicode + spazi/apostrofi/punti/trattini |
-| `unit` | string | no | `celsius` | `celsius` \| `fahrenheit` |
+| Nome   | Tipo   | Obbligatorio | Default   | Validazione                                                       |
+| ------ | ------ | ------------ | --------- | ----------------------------------------------------------------- |
+| `city` | string | sì           | —         | 2-100 caratteri, lettere Unicode + spazi/apostrofi/punti/trattini |
+| `unit` | string | no           | `celsius` | `celsius` \| `fahrenheit`                                         |
 
 **Esempio:**
+
 ```bash
 curl "http://localhost:8080/api/weather?city=Roma&unit=celsius"
 ```
@@ -192,13 +201,14 @@ curl "http://localhost:8080/api/weather?city=Roma&unit=celsius"
 
 Recupera il meteo per coordinate geografiche (usato dalla geolocalizzazione).
 
-| Nome | Tipo | Range |
-|---|---|---|
-| `lat` | double | -90.0 ↔ 90.0 |
-| `lon` | double | -180.0 ↔ 180.0 |
+| Nome   | Tipo   | Range                     |
+| ------ | ------ | ------------------------- |
+| `lat`  | double | -90.0 ↔ 90.0              |
+| `lon`  | double | -180.0 ↔ 180.0            |
 | `unit` | string | `celsius` \| `fahrenheit` |
 
 **Esempio:**
+
 ```bash
 curl "http://localhost:8080/api/weather/coords?lat=41.89&lon=12.48"
 ```
@@ -207,11 +217,12 @@ curl "http://localhost:8080/api/weather/coords?lat=41.89&lon=12.48"
 
 Restituisce fino a 5 città che matchano la query, utili per l'autocompletamento.
 
-| Nome | Tipo | Validazione |
-|---|---|---|
-| `q` | string | 2-50 caratteri |
+| Nome | Tipo   | Validazione    |
+| ---- | ------ | -------------- |
+| `q`  | string | 2-50 caratteri |
 
 **Esempio:**
+
 ```bash
 curl "http://localhost:8080/api/weather/autocomplete?q=Mil"
 ```
@@ -275,13 +286,13 @@ curl "http://localhost:8080/api/weather/autocomplete?q=Mil"
 
 ### Mapping HTTP status codes
 
-| Status | Scenario |
-|---|---|
-| `200 OK` | Richiesta riuscita |
-| `400 Bad Request` | Validation fallita, parametro mancante o tipo errato |
-| `404 Not Found` | Città non trovata dal geocoding |
-| `502 Bad Gateway` | API Open-Meteo irraggiungibile o lenta (dopo 3 tentativi) |
-| `500 Internal Server Error` | Eccezione non gestita (fallback) |
+| Status                      | Scenario                                                  |
+| --------------------------- | --------------------------------------------------------- |
+| `200 OK`                    | Richiesta riuscita                                        |
+| `400 Bad Request`           | Validation fallita, parametro mancante o tipo errato      |
+| `404 Not Found`             | Città non trovata dal geocoding                           |
+| `502 Bad Gateway`           | API Open-Meteo irraggiungibile o lenta (dopo 3 tentativi) |
+| `500 Internal Server Error` | Eccezione non gestita (fallback)                          |
 
 ---
 
@@ -348,12 +359,12 @@ mvn test
 
 **Coverage attuale: 31 test, tutti passing.**
 
-| Test class | Count | Focus |
-|---|---:|---|
-| `WeatherControllerTest` | 4 | Happy path endpoint + 404 + param mancante |
-| `WeatherControllerValidationTest` | 13 | Vincoli input: @Pattern, @Size, @DecimalMin, type mismatch, errori 502 |
-| `WeatherServiceTest` | 5 | Logica di composizione + propagazione eccezioni |
-| `GeocodingServiceTest` | 9 | Casi limite: null/empty results, query corte, whitespace, mapping |
+| Test class                        | Count | Focus                                                                  |
+| --------------------------------- | ----: | ---------------------------------------------------------------------- |
+| `WeatherControllerTest`           |     4 | Happy path endpoint + 404 + param mancante                             |
+| `WeatherControllerValidationTest` |    13 | Vincoli input: @Pattern, @Size, @DecimalMin, type mismatch, errori 502 |
+| `WeatherServiceTest`              |     5 | Logica di composizione + propagazione eccezioni                        |
+| `GeocodingServiceTest`            |     9 | Casi limite: null/empty results, query corte, whitespace, mapping      |
 
 Nota: `WeatherControllerValidationTest` usa `@WebMvcTest` + `@MockitoBean` (non il deprecato
 `@MockBean`) per caricare l'AOP di `@Validated`, che in standalone non sarebbe attivo.
@@ -437,11 +448,13 @@ weather-app/
 ## 🔮 Miglioramenti futuri
 
 ### Priorità alta
+
 - **Service Worker + Web App Manifest** per installabilità PWA e uso offline
 - **Circuit breaker** con Resilience4j oltre al retry, per non bombardare un'API chiaramente giù
 - **Observability** — Micrometer + endpoint `/actuator/metrics` esposto, integrazione Prometheus
 
 ### Priorità media
+
 - **i18n** — attualmente tutto hardcoded italiano. Estrazione in `messages_xx.properties`
 - **Dark mode automatica** da `prefers-color-scheme` come default se l'utente non ha mai scelto
 - **Navigazione browser bidirezionale** — sostituire `history.replaceState` con `pushState` + listener `popstate`
@@ -449,6 +462,7 @@ weather-app/
 - **Notifiche push** per avvisi meteo estremi (Web Push API)
 
 ### Priorità bassa
+
 - **Testing frontend** — introdurre Vitest o Playwright per test di UI e E2E
 - **Compressione response** — `server.compression.enabled=true` per ridurre banda su mobile
 - **Cache distribuita** — se l'app scalasse orizzontalmente, Redis invece di Caffeine in-memory
@@ -459,6 +473,7 @@ weather-app/
 ## 🐞 Segnalazione bug
 
 Se trovi un bug o hai un'idea di miglioramento, apri una issue descrivendo:
+
 - Cosa hai fatto per riprodurre il problema
 - Cosa ti aspettavi
 - Cosa è successo invece
