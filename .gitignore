@@ -15,3 +15,14 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Chiavi e segreti — prevenzione: se in futuro l'app dovesse usare
+# API key (es. Open-Meteo Commercial), questi pattern impediscono
+# di committarle accidentalmente nel repository.
+.env
+.env.*
+*.key
+*.pem
+*.p12
+*secrets*
+application-local.yml
